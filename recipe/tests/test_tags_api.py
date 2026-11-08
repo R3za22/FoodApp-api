@@ -96,3 +96,23 @@ class PrivateTagsApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         tags = Tag.objects.filter(user=self.user)
         self.assertFalse(tags.exists())
+
+    def test_create_tag(self):
+        """test creating a tag from the tags manager"""
+        res = self.client.post(TAGS_URL, {'name': 'Quick'})
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(
+            Tag.objects.filter(user=self.user, name='Quick').exists())
+
+    def test_tag_reports_recipe_count(self):
+        """test a tag exposes how many recipes use it"""
+        from core.models import Recipe
+        tag = Tag.objects.create(user=self.user, name='Soup')
+        recipe = Recipe.objects.create(
+            user=self.user, title='x', time_minutes=1, price='1.00')
+        recipe.tags.add(tag)
+
+        res = self.client.get(TAGS_URL)
+
+        self.assertEqual(res.data[0]['recipe_count'], 1)

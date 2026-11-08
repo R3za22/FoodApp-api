@@ -1,6 +1,7 @@
 """
 Tests for Models in the core application of the FoodApp project.
 """
+import os
 from unittest.mock import patch
 from decimal import Decimal
 
@@ -93,4 +94,5 @@ class ModelTests(TestCase):
         mock_uuid.return_value = uuid
         file_path = models.recipe_image_file_path(None, 'example.jpg')
 
-        self.assertEqual(file_path, f'uploads\\recipe\\{uuid}.jpg')
+        self.assertEqual(
+            file_path, os.path.join('uploads', 'recipe', f'{uuid}.jpg'))

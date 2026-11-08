@@ -98,3 +98,23 @@ class PrivateIngredientApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         ingredients = Ingredient.objects.filter(user=self.user)
         self.assertFalse(ingredients.exists())
+
+    def test_create_ingredient(self):
+        """test creating an ingredient from the manager"""
+        res = self.client.post(INGREDIENTS_URL, {'name': 'Saffron'})
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Ingredient.objects.filter(
+            user=self.user, name='Saffron').exists())
+
+    def test_ingredient_reports_recipe_count(self):
+        """test an ingredient exposes how many recipes use it"""
+        from core.models import Recipe
+        ing = Ingredient.objects.create(user=self.user, name='Cumin')
+        recipe = Recipe.objects.create(
+            user=self.user, title='x', time_minutes=1, price='1.00')
+        recipe.ingredients.add(ing)
+
+        res = self.client.get(INGREDIENTS_URL)
+
+        self.assertEqual(res.data[0]['recipe_count'], 1)

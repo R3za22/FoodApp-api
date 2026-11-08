@@ -10,7 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
+import sys
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,13 +23,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ugap@-(b^g_szyn4x*xf^e(&6tzw5*3@a2dhl#39)o$va%ly@!'
+def _env_bool(name, default=False):
+    return os.environ.get(name, str(default)).strip().lower() in (
+        '1', 'true', 'yes', 'on')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
-ALLOWED_HOSTS = []
+# DEBUG is off unless explicitly enabled: DJANGO_DEBUG=1
+DEBUG = _env_bool('DJANGO_DEBUG', False)
+
+# The secret key comes from the environment. A throw-away key is accepted
+# only for local debugging and for `manage.py test`; it is never committed
+# as a real secret.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
+if not SECRET_KEY:
+    if DEBUG or 'test' in sys.argv:
+        SECRET_KEY = 'insecure-local-only-key-' + 'x' * 40
+    else:
+        raise ImproperlyConfigured(
+            'Set DJANGO_SECRET_KEY (or DJANGO_DEBUG=1 for local use).')
+
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
+    if h.strip()
+]
 
 
 # Application definition
@@ -124,8 +144,8 @@ USE_TZ = True
 STATIC_URL = '/static/static/'
 MEDIA_URL = '/static/media/'
 
-MEDIA_ROOT = '/web/media/'
-STATIC_ROOT = '/web/static/'
+MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT', str(BASE_DIR / 'media'))
+STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT', str(BASE_DIR / 'staticfiles'))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -140,8 +160,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Your Project API',
-    'DESCRIPTION': 'Your project description',
+    'TITLE': 'FoodApp recipe API',
+    'DESCRIPTION': 'Recipes, tags and ingredients with token authentication.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     # OTHER SETTINGS
