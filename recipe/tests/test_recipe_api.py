@@ -400,3 +400,52 @@ class ImageUploadTests(TestCase):
         res = self.client.post(url, payload)
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class RecipeIngredientsApiTests(TestCase):
+    """ingredients are readable and writable on the recipe detail"""
+
+    def setUp(self):
+        self.user = create_user(email='ing@example.com', password='pass12345')
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_detail_includes_ingredients(self):
+        recipe = create_recipe(user=self.user)
+        ing = Ingredient.objects.create(user=self.user, name='Eggs')
+        recipe.ingredients.add(ing)
+
+        res = self.client.get(detail_url(recipe.id))
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            res.data['ingredients'], [{'id': ing.id, 'name': 'Eggs'}])
+
+    def test_create_recipe_with_ingredients(self):
+        existing = Ingredient.objects.create(user=self.user, name='Eggs')
+        payload = {
+            'title': 'Shakshuka', 'time_minutes': 25, 'price': '4.50',
+            'ingredients': [{'name': 'Eggs'}, {'name': 'Cumin'}],
+        }
+
+        res = self.client.post(RECIPES_URL, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recipe = Recipe.objects.get(id=res.data['id'])
+        self.assertEqual(recipe.ingredients.count(), 2)
+        self.assertIn(existing, recipe.ingredients.all())
+        self.assertEqual(Ingredient.objects.filter(
+            user=self.user, name='Eggs').count(), 1)
+
+    def test_update_replaces_ingredients(self):
+        recipe = create_recipe(user=self.user)
+        old = Ingredient.objects.create(user=self.user, name='Old')
+        recipe.ingredients.add(old)
+
+        res = self.client.patch(
+            detail_url(recipe.id),
+            {'ingredients': [{'name': 'New'}]}, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        names = [i.name for i in recipe.ingredients.all()]
+        self.assertEqual(names, ['New'])
